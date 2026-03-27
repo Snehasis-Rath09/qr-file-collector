@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>File Upload</title> 
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 450px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        }
+        h1 { 
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2.5rem;  /* Bigger title */
+            margin-bottom: 10px;
+        }
+        .upload-area {
+            border: 3px dashed #e1e5e9;
+            border-radius: 20px;
+            padding: 60px 30px;
+            margin: 30px 0;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea15, #764ba215);
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(102,126,234,0.2);
+        }
+        .upload-icon { font-size: 5rem; margin-bottom: 20px; }
+        .status {
+            padding: 20px; border-radius: 16px; font-weight: 600;
+            min-height: 24px; margin-top: 20px; display: none;
+        }
+        .status.show { display: block; }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.loading { background: #fff3cd; color: #856404; }
+        .status.error { background: #f8d7da; color: #721c24; }
+       input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📤 Drop File</h1>  <!-- ✅ SUPER CLEAN -->
+        <p style="color: #666; margin-bottom: 30px; font-size: 1.2rem;">Upload your document here</p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">☁️</div>
+            <div style="font-size: 1.4rem; font-weight: 600; color: #333; margin-bottom: 10px;">
+                Drop file or tap here
+            </div>
+            <div style="color: #888; font-size: 1rem;">PDF, Images, Documents</div>
+            <input type="file" id="fileInput">
+        </div>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const url = window.location.pathname;
+        const id = url.split('/').pop();  // Gets session from /qr/SESSION-ID or /upload/SESSION-ID
+
+        const socket = io();
+        socket.emit('join', id);
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+
+        // Drag & drop + click events (SAME as before)
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            fileInput.files = e.dataTransfer.files;
+            uploadFile();
+        });
+        fileInput.addEventListener('change', uploadFile);
+
+        function uploadFile() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            status.textContent = '⏳ Uploading...';
+            status.className = 'status loading show';
+
+            fetch(`/upload/${id}`, { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(() => {
+                    status.textContent = '✅ Uploaded successfully!';
+                    status.className = 'status success show';
+                    fileInput.value = '';
+                    setTimeout(() => status.classList.remove('show'), 3000);
+                })
+                .catch(() => {
+                    status.textContent = '❌ Upload failed. Try again.';
+                    status.className = 'status error show';
+                    setTimeout(() => status.classList.remove('show'), 3000);
+                });
+        }
+    </script>
+</body>
+</html>

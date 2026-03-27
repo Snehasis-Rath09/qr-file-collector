@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QR File Collector</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            animation: slideIn 0.6s ease-out;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        h1 { 
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 18px;
+            cursor: pointer;
+            margin: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(102,126,234,0.4);
+        }
+        button:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(102,126,234,0.6); }
+        #qrSection { display: none; }
+        #qrCode {
+            width: 280px;
+            height: 280px;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+            margin: 30px 0;
+            image-rendering: pixelated;
+        }
+        .instruction {
+            background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+            padding: 25px;
+            border-radius: 16px;
+            margin: 20px 0;
+            font-size: 16px;
+        }
+        .files { margin-top: 30px; text-align: left; }
+        .file {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            animation: fileIn 0.4s ease-out;
+        }
+        @keyframes fileIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        .download-btn { 
+            background: #10b981; 
+            color: white; 
+            padding: 12px 24px; 
+            border-radius: 25px; 
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover { background: #059669; transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 QR Collector</h1>
+        <p style="color: #666; margin-bottom: 30px;">Anyone scan QR → upload files instantly</p>
+        
+        <button onclick="generateQR()">🔄 Generate QR</button>
+        
+        <div id="qrSection">
+            <img id="qrCode" alt="QR Code">
+            <div class="instruction">
+                <div style="font-size: 18px; margin-bottom: 15px;">
+                    📱 <strong>Show QR to anyone</strong>
+                </div>
+                <div>They scan → upload files → you see here instantly</div>
+            </div>
+            <div id="filesList" class="files">
+                <h3>📁 Files Collected (0):</h3>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let currentId = null;
+        const socket = io();
+
+        function generateQR() {
+    document.getElementById('qrSection').style.display = 'block';
+    
+    fetch('/generate')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('qrCode').src = data.qr;
+            
+            
+            const mode = data.isLocal ? 
+                '🌐 Local Network' : 
+                '🌍 Internet Sharing';
+            
+            document.querySelector('.instruction').innerHTML = `
+                <div style="font-size: 18px; margin-bottom: 15px;">
+                    📱 <strong>${mode}</strong>
+                </div>
+                <div>Show QR → Anyone scans → files appear here!</div>
+            `;
+            
+            currentId = data.id;
+            socket.emit('join', currentId);
+            document.getElementById('filesList').innerHTML = '<h3>📁 Files Collected (0):</h3>';
+        });
+}
+
+        socket.on('filesUpdated', (data) => {
+            const filesList = document.getElementById('filesList');
+            filesList.innerHTML = `<h3>📁 Files Collected (${data.total}):</h3>`;
+            data.files.forEach((file, i) => {
+                filesList.innerHTML += `
+                    <div class="file">
+                        <div>
+                            <strong>${file.name}</strong><br>
+                            <small>${(file.size/1024).toFixed(1)}KB</small>
+                        </div>
+                        <a href="${file.url}" class="download-btn" download>⬇️ Download</a>
+                    </div>
+                `;
+            });
+        });
+    </script>
+</body>
+</html>
