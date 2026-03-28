@@ -21,7 +21,21 @@ const storage = multer.diskStorage({
   destination: "./uploads",
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
-const upload = multer({ storage });
+
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const banned = ['.exe', '.bat', '.sh', '.cmd', '.msi', '.vbs', '.docm'];
+  if (banned.includes(ext)) {
+    return cb(new Error("Malicious"), false);
+  }
+  cb(null, true);
+};
+
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter
+});
 
 let sessions = {};
 
@@ -42,13 +56,13 @@ app.get("/", (req, res) => {
 
 app.get("/generate", async (req, res) => {
   const id = uuidv4();
-  sessions[id] = [];
+  sessions[id] = { files: [], createdAt: Date.now() };
   
   let uploadUrl;
   const host = req.get('host') || '';
   
 
-  if (host.includes('onrender.com') || host.includes('vercel.app') || host.includes('qr-file-collector')) {
+  if (host.includes('onrender.com') || host.includes('vercel.app') || host.includes('qr-file-collector') || host.includes('loca.lt') || host.includes('trycloudflare.com')) {
     uploadUrl = `https://${host}/qr/${id}`;
     isLocal = false;
   } else {
@@ -71,30 +85,74 @@ app.get("/upload/:id", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "upload.html"));
 });
 
-app.post("/upload/:id", upload.single("file"), (req, res) => {
-  const id = req.params.id;
-  if (!sessions[id]) sessions[id] = [];
-  
-  const fileData = {
-    url: `/uploads/${req.file.filename}`,
-    name: req.file.originalname,
-    size: req.file.size,
-    uploadedAt: new Date().toLocaleString()
-  };
-  
-  sessions[id].push(fileData);
-  io.to(id).emit("filesUpdated", { files: sessions[id], total: sessions[id].length });
-  res.json({ success: true });
+app.post("/upload/:id", (req, res) => {
+  upload.array("files")(req, res, (err) => {
+    if (err) {
+      if (err.message === "Malicious") {
+        return res.status(400).json({ error: "File type not allowed! (Possible Malware)" });
+      }
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ error: "File size exceeds 50MB limit!" });
+      }
+      return res.status(500).json({ error: "Upload failed." });
+    }
+
+    const id = req.params.id;
+    if (!sessions[id]) sessions[id] = { files: [], createdAt: Date.now() };
+    
+    if (req.files) {
+      req.files.forEach(file => {
+        const fileData = {
+          url: `/uploads/${file.filename}`,
+          name: file.originalname,
+          size: file.size,
+          uploadedAt: new Date().toLocaleString()
+        };
+        sessions[id].files.push(fileData);
+      });
+    }
+    
+    io.to(id).emit("filesUpdated", { files: sessions[id].files, total: sessions[id].files.length });
+    res.json({ success: true });
+  });
 });
 
 io.on("connection", (socket) => {
   socket.on("join", (id) => {
     socket.join(id);
     if (sessions[id]) {
-      socket.emit("filesUpdated", { files: sessions[id], total: sessions[id].length });
+      socket.emit("filesUpdated", { files: sessions[id].files, total: sessions[id].files.length });
     }
   });
 });
+
+// Cron-like TTL Background Worker (runs every hour)
+setInterval(() => {
+  const now = Date.now();
+  const UPLOADS_DIR = path.join(__dirname, 'uploads');
+  const MAX_FILE_AGE = 24 * 60 * 60 * 1000; // 24 hours
+  const SESSION_MAX_AGE = 12 * 60 * 60 * 1000; // 12 hours
+
+  // 1. Cleanup old UUID memory block sessions
+  for (const sessionId in sessions) {
+    if (now - sessions[sessionId].createdAt > SESSION_MAX_AGE) {
+      delete sessions[sessionId];
+    }
+  }
+
+  // 2. Erase archaic file storage to conserve VPS SSD
+  fs.readdir(UPLOADS_DIR, (err, files) => {
+    if (err) return;
+    files.forEach(file => {
+      const filePath = path.join(UPLOADS_DIR, file);
+      fs.stat(filePath, (err, stats) => {
+        if (!err && (now - stats.mtimeMs > MAX_FILE_AGE)) {
+          fs.unlink(filePath, () => {});
+        }
+      });
+    });
+  });
+}, 60 * 60 * 1000);
 
 
 const PORT = process.env.PORT || 3000;

@@ -1,131 +1,414 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>File Upload</title> 
+    <title>Upload Files</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Upload files securely via QR code link">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0f;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            overflow-x: hidden;
+            position: relative;
         }
+
+        /* Animated gradient orbs */
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.4;
+            z-index: 0;
+            animation: float 8s ease-in-out infinite alternate;
+        }
+        body::before {
+            width: 450px; height: 450px;
+            background: radial-gradient(circle, #8b5cf6, #6366f1);
+            top: -120px; right: -100px;
+        }
+        body::after {
+            width: 350px; height: 350px;
+            background: radial-gradient(circle, #06b6d4, #3b82f6);
+            bottom: -80px; left: -60px;
+            animation-delay: 4s;
+        }
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, -20px) scale(1.08); }
+        }
+
         .container {
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            padding: 40px;
-            max-width: 450px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 28px;
+            padding: 48px 40px;
+            max-width: 480px;
             width: 100%;
             text-align: center;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            box-shadow:
+                0 25px 60px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 1;
         }
-        h1 { 
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-size: 2.5rem;  /* Bigger title */
-            margin-bottom: 10px;
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
+
+        .logo {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, #6366f1, #06b6d4);
+            border-radius: 18px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem;
+            margin: 0 auto 20px;
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.95rem;
+            margin-bottom: 32px;
+        }
+
         .upload-area {
-            border: 3px dashed #e1e5e9;
+            border: 2px dashed rgba(255, 255, 255, 0.15);
             border-radius: 20px;
-            padding: 60px 30px;
-            margin: 30px 0;
-            background: #f8f9fa;
+            padding: 50px 30px;
+            margin: 0 0 20px;
+            background: rgba(255, 255, 255, 0.03);
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
         }
-        .upload-area:hover, .upload-area.dragover {
-            border-color: #667eea;
-            background: linear-gradient(135deg, #667eea15, #764ba215);
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(102,126,234,0.2);
+        .upload-area:hover {
+            border-color: rgba(99, 102, 241, 0.5);
+            background: rgba(99, 102, 241, 0.08);
+            transform: translateY(-4px);
+            box-shadow: 0 16px 48px rgba(99, 102, 241, 0.15);
         }
-        .upload-icon { font-size: 5rem; margin-bottom: 20px; }
-        .status {
-            padding: 20px; border-radius: 16px; font-weight: 600;
-            min-height: 24px; margin-top: 20px; display: none;
+
+        .upload-icon {
+            font-size: 3.5rem;
+            margin-bottom: 16px;
+            display: block;
         }
-        .status.show { display: block; }
-        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .status.loading { background: #fff3cd; color: #856404; }
-        .status.error { background: #f8d7da; color: #721c24; }
-       input[type="file"] { display: none; }
+        .upload-label {
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .upload-hint {
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 0.85rem;
+        }
+        .upload-limit {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            padding: 4px 12px;
+            border-radius: 50px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        input[type="file"] { display: none; }
+
+        /* Drag overlay */
+        .drag-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(99, 102, 241, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .drag-overlay.active { display: flex; }
+        .drag-overlay-icon { font-size: 4rem; animation: bounce 1s infinite; }
+        .drag-overlay-text { color: white; font-size: 1.5rem; font-weight: 700; }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+
+        /* Progress bar */
+        .progress-container {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50px;
+            height: 8px;
+            overflow: hidden;
+            display: none;
+            margin-top: 20px;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7);
+            background-size: 200% 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: shimmer 1.5s infinite;
+            border-radius: 50px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .progress-text {
+            color: rgba(255,255,255,0.5);
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+            display: none;
+        }
+
+        /* File queue */
+        .file-queue {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .file-queue-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            animation: slideUp 0.3s ease;
+        }
+        .file-queue-icon { font-size: 1.4rem; }
+        .file-queue-name {
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+        .file-queue-size {
+            color: rgba(255,255,255,0.35);
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 480px) {
+            .container { padding: 32px 24px; }
+            h1 { font-size: 1.6rem; }
+            .upload-area { padding: 40px 20px; }
+        }
     </style>
 </head>
 <body>
+    <div id="dragOverlay" class="drag-overlay">
+        <div class="drag-overlay-icon">📥</div>
+        <div class="drag-overlay-text">Drop files to upload</div>
+    </div>
+
     <div class="container">
-        <h1>📤 Drop File</h1>  <!-- ✅ SUPER CLEAN -->
-        <p style="color: #666; margin-bottom: 30px; font-size: 1.2rem;">Upload your document here</p>
+        <div class="logo">☁️</div>
+        <h1>Upload Files</h1>
+        <p class="subtitle">Drop or select files to share instantly</p>
 
         <div class="upload-area" id="uploadArea">
-            <div class="upload-icon">☁️</div>
-            <div style="font-size: 1.4rem; font-weight: 600; color: #333; margin-bottom: 10px;">
-                Drop file or tap here
-            </div>
-            <div style="color: #888; font-size: 1rem;">PDF, Images, Documents</div>
-            <input type="file" id="fileInput">
+            <span class="upload-icon">📂</span>
+            <div class="upload-label">Drop files or tap to browse</div>
+            <div class="upload-hint">PDF, Images, Documents & more</div>
+            <div class="upload-limit">🔒 Max 50MB per file</div>
+            <input type="file" id="fileInput" multiple>
         </div>
 
-        <div id="status" class="status"></div>
+        <div id="fileQueue" class="file-queue"></div>
+
+        <div id="progressContainer" class="progress-container">
+            <div id="progressBar" class="progress-bar"></div>
+        </div>
+        <div id="progressText" class="progress-text"></div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script>
         const url = window.location.pathname;
-        const id = url.split('/').pop();  // Gets session from /qr/SESSION-ID or /upload/SESSION-ID
+        const id = url.split('/').pop();
 
         const socket = io();
         socket.emit('join', id);
 
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
-        const status = document.getElementById('status');
+        const dragOverlay = document.getElementById('dragOverlay');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const fileQueue = document.getElementById('fileQueue');
 
-        // Drag & drop + click events (SAME as before)
+        // Full-window drag drop
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dragOverlay.classList.add('active');
+        });
+        window.addEventListener('dragleave', (e) => {
+            if (e.clientX === 0 && e.clientY === 0) {
+                dragOverlay.classList.remove('active');
+            }
+        });
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragOverlay.classList.remove('active');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                uploadFile();
+            }
+        });
+
         uploadArea.addEventListener('click', () => fileInput.click());
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            fileInput.files = e.dataTransfer.files;
-            uploadFile();
-        });
         fileInput.addEventListener('change', uploadFile);
 
+        function showToast(text, type) {
+            Toastify({
+                text,
+                duration: 3500,
+                gravity: "top",
+                position: "center",
+                style: {
+                    background: type === 'success'
+                        ? "linear-gradient(135deg, #059669, #10b981)"
+                        : type === 'error'
+                        ? "linear-gradient(135deg, #dc2626, #ef4444)"
+                        : "linear-gradient(135deg, #d97706, #f59e0b)",
+                    borderRadius: "12px",
+                    fontWeight: "600",
+                    fontFamily: "'Inter', system-ui, sans-serif",
+                    padding: "12px 24px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.3)"
+                }
+            }).showToast();
+        }
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const icons = {
+                pdf: '📄', doc: '📝', docx: '📝', txt: '📝',
+                png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', svg: '🖼️',
+                mp4: '🎥', mov: '🎥', mp3: '🎵', wav: '🎵',
+                zip: '🗜️', rar: '🗜️'
+            };
+            return icons[ext] || '📁';
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function renderFileQueue(files) {
+            let html = '';
+            for (let i = 0; i < files.length; i++) {
+                html += `
+                    <div class="file-queue-item">
+                        <span class="file-queue-icon">${getFileIcon(files[i].name)}</span>
+                        <span class="file-queue-name">${files[i].name}</span>
+                        <span class="file-queue-size">${formatSize(files[i].size)}</span>
+                    </div>
+                `;
+            }
+            fileQueue.innerHTML = html;
+        }
+
         function uploadFile() {
-            const file = fileInput.files[0];
-            if (!file) return;
+            const files = fileInput.files;
+            if (!files || files.length === 0) return;
+
+            renderFileQueue(files);
 
             const formData = new FormData();
-            formData.append('file', file);
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
 
-            status.textContent = '⏳ Uploading...';
-            status.className = 'status loading show';
+            progressContainer.style.display = 'block';
+            progressText.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Uploading...';
 
-            fetch(`/upload/${id}`, { method: 'POST', body: formData })
-                .then(res => res.json())
-                .then(() => {
-                    status.textContent = '✅ Uploaded successfully!';
-                    status.className = 'status success show';
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `/upload/${id}`, true);
+
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const pct = Math.round((event.loaded / event.total) * 100);
+                    progressBar.style.width = pct + '%';
+                    progressText.textContent = `Uploading... ${pct}%`;
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    showToast(`✅ ${files.length} file${files.length > 1 ? 's' : ''} uploaded!`, 'success');
                     fileInput.value = '';
-                    setTimeout(() => status.classList.remove('show'), 3000);
-                })
-                .catch(() => {
-                    status.textContent = '❌ Upload failed. Try again.';
-                    status.className = 'status error show';
-                    setTimeout(() => status.classList.remove('show'), 3000);
-                });
+                    progressText.textContent = 'Complete!';
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                        progressText.style.display = 'none';
+                        fileQueue.innerHTML = '';
+                    }, 1500);
+                } else {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        showToast(`❌ ${response.error || 'Upload failed.'}`, 'error');
+                    } catch(e) {
+                        showToast('❌ Upload failed.', 'error');
+                    }
+                    progressContainer.style.display = 'none';
+                    progressText.style.display = 'none';
+                }
+            };
+
+            xhr.onerror = () => {
+                showToast('❌ Network error during upload.', 'error');
+                progressContainer.style.display = 'none';
+                progressText.style.display = 'none';
+            };
+
+            xhr.send(formData);
         }
     </script>
 </body>

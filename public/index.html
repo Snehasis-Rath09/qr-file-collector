@@ -1,158 +1,443 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>QR File Collector</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Collect files instantly via QR code scanning">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0f;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            overflow-x: hidden;
+            position: relative;
         }
+
+        /* Animated gradient orbs */
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.4;
+            z-index: 0;
+            animation: float 8s ease-in-out infinite alternate;
+        }
+        body::before {
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, #6366f1, #8b5cf6);
+            top: -150px; left: -100px;
+        }
+        body::after {
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, #ec4899, #a855f7);
+            bottom: -100px; right: -80px;
+            animation-delay: 4s;
+        }
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(40px, -30px) scale(1.1); }
+        }
+
         .container {
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            padding: 40px;
-            max-width: 500px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 28px;
+            padding: 48px 40px;
+            max-width: 520px;
             width: 100%;
             text-align: center;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
-            animation: slideIn 0.6s ease-out;
+            box-shadow:
+                0 25px 60px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 1;
         }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        h1 { 
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        button {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+
+        .logo {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+            border-radius: 18px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem;
+            margin: 0 auto 20px;
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.95rem;
+            font-weight: 400;
+            margin-bottom: 32px;
+        }
+
+        .btn-generate {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
             color: white;
             border: none;
-            padding: 15px 40px;
-            border-radius: 50px;
-            font-size: 18px;
+            padding: 16px 44px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: inherit;
             cursor: pointer;
-            margin: 20px;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 30px rgba(102,126,234,0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.35);
+            position: relative;
+            overflow: hidden;
         }
-        button:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(102,126,234,0.6); }
-        #qrSection { display: none; }
-        #qrCode {
-            width: 280px;
-            height: 280px;
+        .btn-generate::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        .btn-generate:hover::before { left: 100%; }
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(99, 102, 241, 0.5);
+        }
+        .btn-generate:active { transform: translateY(0) scale(0.98); }
+
+        #qrSection { display: none; animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; margin-top: 24px; }
+
+        .qr-wrapper {
+            background: white;
             border-radius: 20px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
-            margin: 30px 0;
-            image-rendering: pixelated;
+            padding: 20px;
+            display: block;
+            margin: 28px auto;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+            max-width: 85%;
+            width: fit-content;
         }
+        #qrCode {
+            width: 100%;
+            max-width: 220px;
+            height: auto;
+            image-rendering: pixelated;
+            display: block;
+            margin: 0 auto;
+        }
+
         .instruction {
-            background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
-            padding: 25px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 20px 24px;
             border-radius: 16px;
             margin: 20px 0;
-            font-size: 16px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
         }
-        .files { margin-top: 30px; text-align: left; }
+        .instruction strong { color: #fff; }
+
+        .btn-copy {
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 8px 18px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            margin: 0;
+            box-shadow: none;
+        }
+        .btn-copy:hover { background: rgba(99, 102, 241, 0.35); color: #fff; }
+
+        .mode-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: max-content;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            margin: 0 auto 16px auto;
+        }
+        .mode-badge .dot {
+            width: 6px; height: 6px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .files {
+            margin-top: 28px;
+            text-align: left;
+        }
+        .files h3 {
+            color: rgba(255,255,255,0.6);
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 16px;
+        }
         .file {
-            background: white;
-            padding: 20px;
-            margin: 15px 0;
-            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 16px 18px;
+            margin: 10px 0;
+            border-radius: 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            animation: fileIn 0.4s ease-out;
+            animation: fileSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: background 0.2s ease;
         }
-        @keyframes fileIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
-        .download-btn { 
-            background: #10b981; 
-            color: white; 
-            padding: 12px 24px; 
-            border-radius: 25px; 
+        .file:hover { background: rgba(255, 255, 255, 0.1); }
+
+        @keyframes fileSlide {
+            from { opacity: 0; transform: translateX(-16px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .file-icon {
+            width: 42px; height: 42px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem;
+            flex-shrink: 0;
+        }
+        .file-icon.pdf { background: rgba(239, 68, 68, 0.15); }
+        .file-icon.doc { background: rgba(59, 130, 246, 0.15); }
+        .file-icon.img { background: rgba(16, 185, 129, 0.15); }
+        .file-icon.vid { background: rgba(168, 85, 247, 0.15); }
+        .file-icon.audio { background: rgba(236, 72, 153, 0.15); }
+        .file-icon.archive { background: rgba(245, 158, 11, 0.15); }
+        .file-icon.other { background: rgba(107, 114, 128, 0.15); }
+
+        .file-name {
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .file-size {
+            color: rgba(255,255,255,0.4);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .download-btn {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+            padding: 8px 18px;
+            border-radius: 10px;
             text-decoration: none;
             font-weight: 600;
-            transition: all 0.3s ease;
+            font-size: 13px;
+            transition: all 0.25s ease;
+            flex-shrink: 0;
         }
-        .download-btn:hover { background: #059669; transform: translateY(-2px); }
+        .download-btn:hover {
+            background: rgba(16, 185, 129, 0.3);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        .empty-state {
+            color: rgba(255,255,255,0.3);
+            font-size: 14px;
+            padding: 32px 0;
+        }
+        .empty-state span { font-size: 2.5rem; display: block; margin-bottom: 12px; }
+
+        @media (max-width: 480px) {
+            .container { padding: 32px 24px; }
+            h1 { font-size: 1.6rem; }
+            #qrCode { width: 180px; height: 180px; }
+            .file { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .download-btn { width: 100%; text-align: center; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📱 QR Collector</h1>
-        <p style="color: #666; margin-bottom: 30px;">Anyone scan QR → upload files instantly</p>
-        
-        <button onclick="generateQR()">🔄 Generate QR</button>
-        
+        <div class="logo">📱</div>
+        <h1>QR Collector</h1>
+        <p class="subtitle">Anyone scans the QR → uploads files → you see them instantly</p>
+
+        <button class="btn-generate" onclick="generateQR()">Generate QR Code</button>
+
         <div id="qrSection">
-            <img id="qrCode" alt="QR Code">
-            <div class="instruction">
-                <div style="font-size: 18px; margin-bottom: 15px;">
+            <div id="modeBadge" class="mode-badge" style="display:none">
+                <span class="dot"></span>
+                <span id="modeText"></span>
+            </div>
+            <div class="qr-wrapper">
+                <img id="qrCode" alt="QR Code">
+            </div>
+            <div class="instruction" id="instruction">
+                <div style="margin-bottom: 10px;">
                     📱 <strong>Show QR to anyone</strong>
                 </div>
                 <div>They scan → upload files → you see here instantly</div>
             </div>
             <div id="filesList" class="files">
-                <h3>📁 Files Collected (0):</h3>
+                <h3>📁 Files Collected (0)</h3>
+                <div class="empty-state">
+                    <span>📭</span>
+                    Waiting for files...
+                </div>
             </div>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script>
         let currentId = null;
         const socket = io();
 
         function generateQR() {
-    document.getElementById('qrSection').style.display = 'block';
-    
-    fetch('/generate')
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('qrCode').src = data.qr;
-            
-            
-            const mode = data.isLocal ? 
-                '🌐 Local Network' : 
-                '🌍 Internet Sharing';
-            
-            document.querySelector('.instruction').innerHTML = `
-                <div style="font-size: 18px; margin-bottom: 15px;">
-                    📱 <strong>${mode}</strong>
-                </div>
-                <div>Show QR → Anyone scans → files appear here!</div>
-            `;
-            
-            currentId = data.id;
-            socket.emit('join', currentId);
-            document.getElementById('filesList').innerHTML = '<h3>📁 Files Collected (0):</h3>';
-        });
-}
+            document.getElementById('qrSection').style.display = 'block';
+            document.querySelector('.btn-generate').textContent = '🔄 Regenerate QR';
+
+            fetch('/generate')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('qrCode').src = data.qr;
+
+                    const modeText = data.isLocal ? 'Local Network' : 'Internet Sharing';
+                    const badge = document.getElementById('modeBadge');
+                    badge.style.display = 'flex';
+                    document.getElementById('modeText').textContent = modeText;
+
+                    window.uploadUrl = data.uploadUrl;
+
+                    document.getElementById('instruction').innerHTML = `
+                        <div style="margin-bottom: 12px;">
+                            📱 <strong>Share this QR code</strong> or
+                            <button class="btn-copy" onclick="copyLink()">🔗 Copy Link</button>
+                        </div>
+                        <div style="color: rgba(255,255,255,0.45); font-size: 13px;">Anyone who scans or clicks will be able to upload files directly to you</div>
+                    `;
+
+                    currentId = data.id;
+                    socket.emit('join', currentId);
+                    document.getElementById('filesList').innerHTML = `
+                        <h3>📁 Files Collected (0)</h3>
+                        <div class="empty-state">
+                            <span>📭</span>
+                            Waiting for files...
+                        </div>
+                    `;
+                });
+        }
+
+        function showToast(text, type) {
+            Toastify({
+                text,
+                duration: 3000,
+                gravity: "top",
+                position: "center",
+                style: {
+                    background: type === 'success'
+                        ? "linear-gradient(135deg, #059669, #10b981)"
+                        : "linear-gradient(135deg, #dc2626, #ef4444)",
+                    borderRadius: "12px",
+                    fontWeight: "600",
+                    fontFamily: "'Inter', system-ui, sans-serif",
+                    padding: "12px 24px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.3)"
+                }
+            }).showToast();
+        }
+
+        function copyLink() {
+            if (window.uploadUrl) {
+                navigator.clipboard.writeText(window.uploadUrl).then(() => {
+                    showToast('🔗 Link copied to clipboard!', 'success');
+                }).catch(() => {
+                    showToast('❌ Failed to copy link', 'error');
+                });
+            }
+        }
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const map = {
+                pdf: { icon: '📄', cls: 'pdf' },
+                doc: { icon: '📝', cls: 'doc' }, docx: { icon: '📝', cls: 'doc' }, txt: { icon: '📝', cls: 'doc' },
+                png: { icon: '🖼️', cls: 'img' }, jpg: { icon: '🖼️', cls: 'img' }, jpeg: { icon: '🖼️', cls: 'img' }, gif: { icon: '🖼️', cls: 'img' }, svg: { icon: '🖼️', cls: 'img' }, webp: { icon: '🖼️', cls: 'img' },
+                mp4: { icon: '🎥', cls: 'vid' }, mov: { icon: '🎥', cls: 'vid' }, avi: { icon: '🎥', cls: 'vid' }, mkv: { icon: '🎥', cls: 'vid' },
+                mp3: { icon: '🎵', cls: 'audio' }, wav: { icon: '🎵', cls: 'audio' }, flac: { icon: '🎵', cls: 'audio' },
+                zip: { icon: '🗜️', cls: 'archive' }, rar: { icon: '🗜️', cls: 'archive' }, tar: { icon: '🗜️', cls: 'archive' }, gz: { icon: '🗜️', cls: 'archive' }
+            };
+            return map[ext] || { icon: '📁', cls: 'other' };
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
 
         socket.on('filesUpdated', (data) => {
             const filesList = document.getElementById('filesList');
-            filesList.innerHTML = `<h3>📁 Files Collected (${data.total}):</h3>`;
-            data.files.forEach((file, i) => {
-                filesList.innerHTML += `
-                    <div class="file">
-                        <div>
-                            <strong>${file.name}</strong><br>
-                            <small>${(file.size/1024).toFixed(1)}KB</small>
+            let html = `<h3>📁 Files Collected (${data.total})</h3>`;
+
+            if (data.files.length === 0) {
+                html += `<div class="empty-state"><span>📭</span>Waiting for files...</div>`;
+            } else {
+                data.files.forEach((file) => {
+                    const fi = getFileIcon(file.name);
+                    html += `
+                        <div class="file">
+                            <div style="display: flex; align-items: center; gap: 14px; min-width: 0;">
+                                <div class="file-icon ${fi.cls}">${fi.icon}</div>
+                                <div style="min-width:0;">
+                                    <div class="file-name">${file.name}</div>
+                                    <div class="file-size">${formatSize(file.size)}</div>
+                                </div>
+                            </div>
+                            <a href="${file.url}" class="download-btn" download>↓ Save</a>
                         </div>
-                        <a href="${file.url}" class="download-btn" download>⬇️ Download</a>
-                    </div>
-                `;
-            });
+                    `;
+                });
+            }
+            filesList.innerHTML = html;
         });
     </script>
 </body>
